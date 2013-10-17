@@ -3,4 +3,4 @@ all:
 	objdump -h -d memory_proccess.out > memory_proccess.dis
 
 clean:
-	-rm memory_proccess.out memory_proccess.dis *.o 2>/dev/null
+	rm -fr *.out *.dis *.o 2>/dev/null

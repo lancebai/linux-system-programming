@@ -15,6 +15,7 @@ void main()
   int local_var = 0;
   static static_local_var = 0;
   void *vptr_heap = malloc(sizeof(int));
+  void *vptr_big_chunc = malloc(sizeof(1024*1024*1024));
   dump_var_addr(local_var);
   dump_var_addr(static_local_var);
   dump_var_addr(global_static_var);
@@ -23,6 +24,9 @@ void main()
   dump_var_addr(global_var_no_init);
   dump_var_addr(global_static_var_no_init);
   dump_var_addr(*vptr_heap); // well, this will cause warnings.
+  if(vptr_big_chunc) {
+    dump_var_addr(*vptr_big_chunc);
+  }
 
   free(vptr_heap);
 }
