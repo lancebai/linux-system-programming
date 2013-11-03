@@ -1,4 +1,4 @@
-CC	=gcc -mcpu=i386
+CC	=gcc -mcpu=i386 -fno-stack-protector
 #CFLAGS	=-Wall -O -fstrength-reduce -fomit-frame-pointer \
 	-finline-functions -nostdinc -I../include
 CFLAGS	=-Wall -O -fstrength-reduce -fomit-frame-pointer -nostdinc -I../include

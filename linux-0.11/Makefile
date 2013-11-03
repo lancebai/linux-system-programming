@@ -10,9 +10,8 @@ LD86	=ld86 -0
 AS	=as
 LD	=ld
 LDFLAGS	=-m elf_i386 -Ttext 0 -e startup_32
-CC	=gcc -mcpu=i386 $(RAMDISK)
+CC	=gcc -mcpu=i386 $(RAMDISK) -fno-stack-protector
 CFLAGS	=-Wall -O2 -fomit-frame-pointer 
-
 CPP	=cpp -nostdinc -Iinclude
 
 #
