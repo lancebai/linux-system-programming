@@ -2,9 +2,10 @@
 # -*- coding: UTF-8 -*-  
 # Description: utility to caculate the mapped share library and offset of vaddr
 # Author: lancebai@gmial.com
+#
 
 import re
-import sys  
+import sys, subprocess  
 import argparse    
 mem_map_dict = {}
 
@@ -14,6 +15,8 @@ class Mem_map_entry(object):
         self.start_address = start_address
         self.end_address = end_address
 
+
+#TODO: instead of store different sections of library in on entry, store as text, ro data, rw data section, etc 
 def analyse_memory_of_process(pid):
     # pid_map_filename = "/proc/%d/maps" % (pid,)
     # print pid_map_filename;
@@ -24,7 +27,7 @@ def analyse_memory_of_process(pid):
             #b6fae000-b6faf000 rw-p 0001e000 b3:02 131187     /lib/arm-linux-gnueabihf/ld-2.13.so
             m = re.match(r'([0-9A-Fa-f]+)-([0-9A-Fa-f]+) ([rwxp-]+) ([0-9A-Fa-f]+) ([0-9A-Fa-f]+):([0-9A-Fa-f]+) ([0-9]+) (.*)' , line)
 
-            if m.group(3)[0] == 'r':  # if this is a readable region
+            if m and m.group(3)[0] == 'r':  # if this is a readable region
                 start = int(m.group(1), 16)
                 end = int(m.group(2), 16)
                 library_name = m.group(8).strip()
@@ -46,13 +49,12 @@ def analyse_memory_of_process(pid):
                     # print library_name, "is not in the list"
                     mem_map_dict[library_name] = (start, end)
 
-                # print "%x - %x %s\n" % (start, end, library_name),  # dump contents to standard output
+                print "%x - %x %s\n" % (start, end, library_name),  # dump contents to standard output
 
         #close maps files        
         maps_file.close()
         return True
-
-        # print "===============\n", mem_map_dict
+        
     except IOError:
         print "can not open file", "/proc/%d/maps" % (pid,)
         return False 
@@ -70,6 +72,7 @@ def parse_param():
     return args
 
 
+#TODO: only parse symbol when it is in the text section
 # return (library name, offset) on success, else None
 def lookup_mapped_library(vaddr):
     for key in mem_map_dict:
@@ -84,6 +87,35 @@ def iterate_mmap():
         print "%x - %x, %s " %(mem_map_dict[key][0], mem_map_dict[key][1], key, )
     print "======================"    
 
+def get_symb_with_offset(library_name, offset):
+
+    if(offset%4 != 0) :
+        raise Exception("offset address not aligned!")
+
+    objdumpPopen = subprocess.Popen(args='objdump -d %s'%(library_name) , shell=True , stdout=subprocess.PIPE)
+    out=objdumpPopen.stdout.readlines()
+    
+    function_symbol = None
+
+    for line in out:        
+        # print line.rstrip()
+        m = re.match(r'(^[0-9A-Fa-f]+) (<.*>:)' , line.rstrip())
+        if m is not None:
+            # print m.group(1), m.group(2)
+            symbol = m.group(2)
+            base_addr = int(m.group(1), 16)
+            new_function_symbol = (symbol, base_addr)
+            # print "%s, %x, offset:%x" %(symbol, base_addr, offset)
+
+            if( offset < base_addr ) :
+                # print  "%s %x %x" %(symbol, base_addr, offset)
+                break
+            else :
+                # print "renew function symbol" 
+                function_symbol = new_function_symbol
+    # print "end of for loop"            
+    return function_symbol        
+                
 
 def main():
     print "main function"
@@ -101,8 +133,17 @@ def main():
     ret = lookup_mapped_library(vaddr)
     if ret != None :
         print "%s, offset:%x" %( ret[0], ret[1], )
+        # try :
+        func_sym = get_symb_with_offset( ret[0], ret[1])
+        if func_sym is not None:
+            print func_sym
+        # except :
+
     else :
         print "%x is not a valid address" %(vaddr,)    
+
+    # ret = get_symb_with_offset('/lib/arm-linux-gnueabihf/libtinfo.so.5.9', 1212)    
+    # print ret
 
 if __name__ == "__main__":
     main()
