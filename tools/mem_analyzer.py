@@ -7,13 +7,16 @@
 import re
 import sys, subprocess  
 import argparse    
-mem_map_dict = {}
 
-class Mem_map_entry(object):
-    def __init__ (self, library_name='', start_address=0, end_address=0):
-        self.library_name = library_name
-        self.start_address = start_address
-        self.end_address = end_address
+# library_name, attributes, start, end
+# TODO: move into const.py
+INDEX_NAME=0
+INDEX_ATTR=1
+INDEX_START=2
+INDEX_END=3
+
+mem_map_list = []
+
 
 
 #TODO: instead of store different sections of library in on entry, store as text, ro data, rw data section, etc 
@@ -27,7 +30,8 @@ def analyse_memory_of_process(pid):
             #b6fae000-b6faf000 rw-p 0001e000 b3:02 131187     /lib/arm-linux-gnueabihf/ld-2.13.so
             m = re.match(r'([0-9A-Fa-f]+)-([0-9A-Fa-f]+) ([rwxp-]+) ([0-9A-Fa-f]+) ([0-9A-Fa-f]+):([0-9A-Fa-f]+) ([0-9]+) (.*)' , line)
 
-            if m and m.group(3)[0] == 'r':  # if this is a readable region
+            if m is not None :
+                attributes = m.group(3) 
                 start = int(m.group(1), 16)
                 end = int(m.group(2), 16)
                 library_name = m.group(8).strip()
@@ -38,18 +42,11 @@ def analyse_memory_of_process(pid):
                 if library_name == "" :
                     continue
 
-                if library_name in mem_map_dict :
-                    # update end address
-                    # print "updating ending address"
-                    if end > mem_map_dict[library_name][1] :
-                        mem_map_dict[library_name] = (mem_map_dict[library_name][0], end)
-                        # print "after updateing %s %x %x" %(library_name, mem_map_dict[library_name][0], mem_map_dict[library_name][1],)
 
-                else :
-                    # print library_name, "is not in the list"
-                    mem_map_dict[library_name] = (start, end)
+                # print library_name, "is not in the list"
+                mem_map_list.append((library_name, attributes, start, end))
 
-                print "%x - %x %s\n" % (start, end, library_name),  # dump contents to standard output
+                print "%x - %x  %s %s\n" % (start, end, attributes, library_name,),   # dump contents to standard output
 
         #close maps files        
         maps_file.close()
@@ -75,16 +72,16 @@ def parse_param():
 #TODO: only parse symbol when it is in the text section
 # return (library name, offset) on success, else None
 def lookup_mapped_library(vaddr):
-    for key in mem_map_dict:
-        if mem_map_dict[key][0] <=  vaddr <=  mem_map_dict[key][1] :
-            return (key, vaddr - mem_map_dict[key][0])
+    for list_entry in mem_map_list:
+        if list_entry[INDEX_START] <=  vaddr <=  list_entry[INDEX_END] :
+            return (list_entry[INDEX_NAME], vaddr - list_entry[INDEX_START])
     return None        
 
 
 def iterate_mmap():
     print "======================"
-    for key in mem_map_dict:
-        print "%x - %x, %s " %(mem_map_dict[key][0], mem_map_dict[key][1], key, )
+    for list_entry in mem_map_list:
+        print "%x - %x, %s %s" %(list_entry[INDEX_START], list_entry[INDEX_END], list_entry[INDEX_ATTR], list_entry[INDEX_NAME]),
     print "======================"    
 
 def get_symb_with_offset(library_name, offset):
@@ -117,22 +114,32 @@ def get_symb_with_offset(library_name, offset):
     return function_symbol        
                 
 
+def isRODataSection(attr):
+    return False
+
+def isRWDataSection(attr):
+    return False
+
+def isTextSection(attr):
+    return False
+        
 def main():
     print "main function"
     pid = parse_param().pid
     vaddr = int(parse_param().vaddr, 16);
 
     print "the parsing pid is:", pid  
-    print "the address:%x" %(vaddr, )
-
+    
     if not analyse_memory_of_process(pid) :
         sys.exit(0)
 
     # iterate_mmap()
         
     ret = lookup_mapped_library(vaddr)
+    print "the address we are looking for:%x" %(vaddr, )
+
     if ret != None :
-        print "%s, offset:%x" %( ret[0], ret[1], )
+        print "library:%s, offset:%x" %( ret[0], ret[1], )
         # try :
         func_sym = get_symb_with_offset( ret[0], ret[1])
         if func_sym is not None:
