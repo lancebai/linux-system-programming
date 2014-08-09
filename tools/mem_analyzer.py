@@ -74,7 +74,7 @@ def parse_param():
 def lookup_mapped_library(vaddr):
     for list_entry in mem_map_list:
         if list_entry[INDEX_START] <=  vaddr <=  list_entry[INDEX_END] :
-            return (list_entry[INDEX_NAME], vaddr - list_entry[INDEX_START])
+            return (list_entry[INDEX_NAME], list_entry[INDEX_ATTR] , vaddr - list_entry[INDEX_START])
     return None        
 
 
@@ -113,16 +113,32 @@ def get_symb_with_offset(library_name, offset):
     # print "end of for loop"            
     return function_symbol        
                 
-
+# attr: rwxp 
 def isRODataSection(attr):
-    return False
+    if attr is None or attr < 4:
+        raise ValueError ('not a valid attribute')
+    if attr[0] is 'r' and attr[1] is not 'w' :
+        return True
+    else:
+        return False
+
 
 def isRWDataSection(attr):
-    return False
+    if attr is None or attr < 4:
+        raise ValueError ('not a valid attribute')
+    if attr[0] is 'r' and attr[1] is 'w' :
+        return True
+    else:
+        return False
 
 def isTextSection(attr):
-    return False
-        
+    if attr is None or attr < 4:
+        raise ValueError ('not a valid attribute')
+    if attr[2] is 'x':
+        return True
+    else:
+        return False    
+
 def main():
     print "main function"
     pid = parse_param().pid
@@ -139,12 +155,25 @@ def main():
     print "the address we are looking for:%x" %(vaddr, )
 
     if ret != None :
-        print "library:%s, offset:%x" %( ret[0], ret[1], )
-        # try :
-        func_sym = get_symb_with_offset( ret[0], ret[1])
-        if func_sym is not None:
-            print func_sym
-        # except :
+        print "library:%s, attr:%s, offset:%x" %( ret[0], ret[1] ,ret[2], )
+
+        
+        if  ret[0] in ["[heap]", "[stack]", "[vectors]" ] :
+            print "is in %s section" %(ret[0],)
+
+        elif  isTextSection(ret[1]) is True:
+            print "it is Text section"
+            func_sym = get_symb_with_offset( ret[0], ret[2])
+            if func_sym is not None:
+                print func_sym
+
+        elif isRWDataSection(ret[1]) is True: 
+            print "it is RW Data section"
+        elif isRODataSection(ret[1]) is True:
+            print "it is Read Only Data Section"
+
+        
+        
 
     else :
         print "%x is not a valid address" %(vaddr,)    
