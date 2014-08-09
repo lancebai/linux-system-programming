@@ -99,7 +99,7 @@ def get_symb_with_offset(library_name, offset):
         m = re.match(r'(^[0-9A-Fa-f]+) (<.*>:)' , line.rstrip())
         if m is not None:
             # print m.group(1), m.group(2)
-            symbol = m.group(2)
+            symbol = m.group(2)[1:-2]
             base_addr = int(m.group(1), 16)
             new_function_symbol = (symbol, base_addr)
             # print "%s, %x, offset:%x" %(symbol, base_addr, offset)
